@@ -3,6 +3,8 @@ import { Server as SocketServer } from "socket.io";
 import debug from "debug";
 import { helpersErrorHandler } from "./errorHandlers";
 import { initSocketFailed } from "../lang/socket/errors";
+import { redisPublisher } from "./redis";
+import { publishTaskExecutionMessageFailed } from "../lang/redis/errors";
 
 const debugLog = debug("socket.ts");
 const errorLog = debug("socket.ts:error");
@@ -13,7 +15,21 @@ export interface Task {
     msg: string,
     isDone: boolean,
 }
-  
+
+export enum taskExecutionEvents {
+    startCommand = "startCommand",
+    executedAcknowledgement = "executedAcknowledgement"
+}
+
+export const publishTaskExecutionMessage = (channel: taskExecutionEvents, message: string) => {
+    try{
+        redisPublisher.publish(channel, message);
+    } catch(err) {
+        helpersErrorHandler(err, publishTaskExecutionMessageFailed, errorLog);
+    }
+}
+
+
 export const initSocket = (httpServer: HttpServer) => {
     try {
         debugLog("in initSocket");
@@ -47,6 +63,7 @@ export const initSocket = (httpServer: HttpServer) => {
                 executeExpensiveTaskDebugLog("task:", task);
 
                 socket.nsp.to(task.clientId).emit("append-new-task", task);
+                publishTaskExecutionMessage(taskExecutionEvents.startCommand, JSON.stringify(task));
 
                 setTimeout(
                     () => {
@@ -56,6 +73,7 @@ export const initSocket = (httpServer: HttpServer) => {
                         // socket.emit("expensive-task-executed", task);   // responding to the same socket id.
                         // socket.to(clientId).emit("expensive-task-executed", task);   // broadcasting to the client specific socket room.
                         socket.nsp.to(task.clientId).emit("expensive-task-executed", task);  // emitting(including self!) to the client specific room.
+                        publishTaskExecutionMessage(taskExecutionEvents.executedAcknowledgement, JSON.stringify(task));
                     }, 
                     Math.random()*10000,
                 );

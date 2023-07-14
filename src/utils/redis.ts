@@ -3,6 +3,7 @@ import debug from "debug"
 
 import { helpersErrorHandler } from "./errorHandlers"
 import { initRedisPublisherFailed, initRedisSubscriberFailed } from "../lang/redis/errors";
+import { Task, taskExecutionEvents } from "./socket";
 
 const debugLog = debug("redis.ts");
 const errorLog = debug("redis.ts:error");
@@ -10,7 +11,7 @@ const errorLog = debug("redis.ts:error");
 
 // redis-server is supposed to be active on local port 6379.
 
-const redisPublisher = createClient();
+export const redisPublisher = createClient();
 
 redisPublisher.on('error', (err) => errorLog("Redis publisher client error!", err));
 
@@ -27,7 +28,7 @@ redisPublisher.connect().then(() => {
 });
 
 
-const redisSubscriber = createClient();
+export const redisSubscriber = createClient();
 
 redisSubscriber.on('error', (err) => errorLog("Redis subscriber client error!", err));
 
@@ -37,10 +38,21 @@ redisSubscriber.connect().then(() => {
     redisSubscriber.subscribe("test", msg => {
         debugLog("Got a message:", msg);
     });
+
+    redisSubscriber.subscribe(taskExecutionEvents.startCommand, (task) => {
+        debugLog("exucution started:", task);
+
+        redisPublisher.unsubscribe(taskExecutionEvents.startCommand);
+    });
+
+    redisSubscriber.subscribe(taskExecutionEvents.executedAcknowledgement, (task) => {
+        debugLog("exucution completed:", task);
+
+        redisPublisher.unsubscribe(taskExecutionEvents.executedAcknowledgement);
+    })
+
+
 }).catch(err => {
     helpersErrorHandler(err, initRedisSubscriberFailed, errorLog)
 });
-
-
-
 
