@@ -19,7 +19,7 @@ redisPublisher.connect().then(() => {
     debugLog("publisher is connected");
 
     setTimeout(() =>
-        redisPublisher.publish("test", "I am a test message!"), 
+        redisPublisher.publish("test", "I am a test message!"),
         3000
     )
 
@@ -42,13 +42,11 @@ redisSubscriber.connect().then(() => {
     redisSubscriber.subscribe(taskExecutionEvents.startCommand, (task) => {
         debugLog("exucution started:", task);
 
-        redisPublisher.unsubscribe(taskExecutionEvents.startCommand);
     });
 
     redisSubscriber.subscribe(taskExecutionEvents.executedAcknowledgement, (task) => {
         debugLog("exucution completed:", task);
 
-        redisPublisher.unsubscribe(taskExecutionEvents.executedAcknowledgement);
     })
 
 
