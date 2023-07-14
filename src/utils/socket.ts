@@ -9,6 +9,7 @@ const errorLog = debug("socket.ts:error");
 
 export interface Task {
     id: string,
+    clientId: string,
     msg: string,
     isDone: boolean,
 }
@@ -41,11 +42,11 @@ export const initSocket = (httpServer: HttpServer) => {
                 }
             })
 
-            socket.on("execute-expensive-task", (clientId: string, task: Task) => {
+            socket.on("execute-expensive-task", (task: Task) => {
                 const executeExpensiveTaskDebugLog = ioConnectionDebugLog.extend("execute-expensive-task");
-                executeExpensiveTaskDebugLog("clientId", clientId, "task:", task);
+                executeExpensiveTaskDebugLog("task:", task);
 
-                socket.nsp.to(clientId).emit("append-new-task", task);
+                socket.nsp.to(task.clientId).emit("append-new-task", task);
 
                 setTimeout(
                     () => {
@@ -54,7 +55,7 @@ export const initSocket = (httpServer: HttpServer) => {
 
                         // socket.emit("expensive-task-executed", task);   // responding to the same socket id.
                         // socket.to(clientId).emit("expensive-task-executed", task);   // broadcasting to the client specific socket room.
-                        socket.nsp.to(clientId).emit("expensive-task-executed", task);  // emitting(including self!) to the client specific room.
+                        socket.nsp.to(task.clientId).emit("expensive-task-executed", task);  // emitting(including self!) to the client specific room.
                     }, 
                     Math.random()*10000,
                 );
